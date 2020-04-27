@@ -53,14 +53,14 @@ export default class Dep {
 // This is globally unique because only one watcher
 // can be evaluated at a time.
 Dep.target = null
-const targetStack = []
+const targetStack = [] // 保存watcher实例的数组
 
 export function pushTarget (target: ?Watcher) {
-  targetStack.push(target)
+  targetStack.push(target) // 添加当前的Watcher实例
   Dep.target = target
 }
 
 export function popTarget () {
-  targetStack.pop()
-  Dep.target = targetStack[targetStack.length - 1]
+  targetStack.pop() // 移除当前的Watcher实例
+  Dep.target = targetStack[targetStack.length - 1] // 始终指向最后一个 // 先进先出
 }

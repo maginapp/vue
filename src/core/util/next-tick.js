@@ -16,6 +16,9 @@ function flushCallbacks () {
   callbacks.length = 0
   for (let i = 0; i < copies.length; i++) {
     copies[i]()
+    // 执行回调队列 => 回调函数的类型 ？？ ?? ⭐
+    // 1. 内部更改响应式属性，DOM元素重新渲染（即flushSchedulerQueue函数）。
+    // 2. 外部调用全局$nextTick传递进来的回调函数。
   }
 }
 
@@ -86,6 +89,7 @@ if (typeof Promise !== 'undefined' && isNative(Promise)) {
 
 export function nextTick (cb?: Function, ctx?: Object) {
   let _resolve
+  // 添加到nextTick队列
   callbacks.push(() => {
     if (cb) {
       try {
@@ -97,6 +101,8 @@ export function nextTick (cb?: Function, ctx?: Object) {
       _resolve(ctx)
     }
   })
+  // 处于非等待状态，则修改pending 为true  并执行
+  // 执行时 只添加
   if (!pending) {
     pending = true
     timerFunc()

@@ -63,13 +63,14 @@ export function parseHTML (html, options) {
     // Make sure we're not in a plaintext content element like script/style
     if (!lastTag || !isPlainTextElement(lastTag)) {
       let textEnd = html.indexOf('<')
-      if (textEnd === 0) {
+      if (textEnd === 0) { // 标签开头
         // Comment:
-        if (comment.test(html)) {
+        if (comment.test(html)) { // 注释标签
           const commentEnd = html.indexOf('-->')
 
           if (commentEnd >= 0) {
             if (options.shouldKeepComment) {
+              // 添加注释标签
               options.comment(html.substring(4, commentEnd), index, index + commentEnd + 3)
             }
             advance(commentEnd + 3)
@@ -78,6 +79,7 @@ export function parseHTML (html, options) {
         }
 
         // http://en.wikipedia.org/wiki/Conditional_comment#Downlevel-revealed_conditional_comment
+        // 1. 条件注释  IE  2 .？？ <![CDATA[]]>  
         if (conditionalComment.test(html)) {
           const conditionalEnd = html.indexOf(']>')
 
@@ -94,7 +96,7 @@ export function parseHTML (html, options) {
           continue
         }
 
-        // End tag:
+        // End tag: // 即判断标签是否为尾标签
         const endTagMatch = html.match(endTag)
         if (endTagMatch) {
           const curIndex = index
@@ -103,7 +105,8 @@ export function parseHTML (html, options) {
           continue
         }
 
-        // Start tag:
+        // Start tag: 
+        // 以上都不是 作为首标签处理
         const startTagMatch = parseStartTag()
         if (startTagMatch) {
           handleStartTag(startTagMatch)
@@ -117,6 +120,7 @@ export function parseHTML (html, options) {
       let text, rest, next
       if (textEnd >= 0) {
         rest = html.slice(textEnd)
+        // 没有以上类型
         while (
           !endTag.test(rest) &&
           !startTagOpen.test(rest) &&
@@ -124,15 +128,16 @@ export function parseHTML (html, options) {
           !conditionalComment.test(rest)
         ) {
           // < in plain text, be forgiving and treat it as text
-          next = rest.indexOf('<', 1)
+          next = rest.indexOf('<', 1) // 还存在 < 
           if (next < 0) break
-          textEnd += next
-          rest = html.slice(textEnd)
+          textEnd += next // 添加到 textEnd
+          rest = html.slice(textEnd) // 截取赋值
         }
+        // 获取到最后一个< 这之前的都是文本类型
         text = html.substring(0, textEnd)
       }
 
-      if (textEnd < 0) {
+      if (textEnd < 0) { // 全是文本
         text = html
       }
 
@@ -194,6 +199,7 @@ export function parseHTML (html, options) {
       }
       advance(start[0].length)
       let end, attr
+      // 获取标签的属性
       while (!(end = html.match(startTagClose)) && (attr = html.match(dynamicArgAttribute) || html.match(attribute))) {
         attr.start = index
         advance(attr[0].length)
@@ -224,6 +230,7 @@ export function parseHTML (html, options) {
 
     const unary = isUnaryTag(tagName) || !!unarySlash
 
+    // 添加属性
     const l = match.attrs.length
     const attrs = new Array(l)
     for (let i = 0; i < l; i++) {

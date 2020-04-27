@@ -43,15 +43,15 @@ export default class Watcher {
   value: any;
 
   constructor (
-    vm: Component,
-    expOrFn: string | Function,
+    vm: Component, // 实例
+    expOrFn: string | Function, // 更新函数
     cb: Function,
     options?: ?Object,
     isRenderWatcher?: boolean
   ) {
     this.vm = vm
     if (isRenderWatcher) {
-      vm._watcher = this
+      vm._watcher = this // watcher实例添加到vm上  forceupdate 触发更新 不建议 watcher.update 不建议  ，因为对比 $set 未将新增属性加入响应式系统
     }
     vm._watchers.push(this)
     // options
@@ -70,16 +70,16 @@ export default class Watcher {
     this.dirty = this.lazy // for lazy watchers
     this.deps = []
     this.newDeps = []
-    this.depIds = new Set()
-    this.newDepIds = new Set()
+    this.depIds = new Set() //
+    this.newDepIds = new Set() // 
     this.expression = process.env.NODE_ENV !== 'production'
       ? expOrFn.toString()
       : ''
     // parse expression for getter
     if (typeof expOrFn === 'function') {
-      this.getter = expOrFn
+      this.getter = expOrFn // 赋值渲染更新方法
     } else {
-      this.getter = parsePath(expOrFn)
+      this.getter = parsePath(expOrFn) // => (obj) => obj[key] vm => 读取对应的值
       if (!this.getter) {
         this.getter = noop
         process.env.NODE_ENV !== 'production' && warn(
@@ -90,7 +90,7 @@ export default class Watcher {
         )
       }
     }
-    this.value = this.lazy
+    this.value = this.lazy // 是否立即触发
       ? undefined
       : this.get()
   }
@@ -99,11 +99,18 @@ export default class Watcher {
    * Evaluate the getter, and re-collect dependencies.
    */
   get () {
-    pushTarget(this)
+    pushTarget(this) // this(Water实例)赋值到Dep.target this.getters是渲染函数
     let value
     const vm = this.vm
     try {
-      value = this.getter.call(vm, vm)
+      value = this.getter.call(vm, vm) // 执行渲染方法 收集依赖
+        // ⭐ watcher 此处调用响应式属性 响应式属性会收集这个watcher
+        /*
+        在创建 Watcher 依赖时，需要传更新回调函数expOrFn进来以便进行计算。但是 watch 会稍微一点点不一样，expOrFn传递的却是一个属性名，而cb才是更新回调函数。
+
+        既然expOrFn不是一个函数类型，因此就会调用parsePath方法进行解析，返回一个解析回调。在最后this.get()方法中，会调用到this.getter中的解析回调，并传入当前 vue 实例。最终从 vue 实例上解析出来一个同名响应式属性，⭐以至于触发了响应式属性的 Getter 函数，这样一来，响应式属性就收集了当前创建 Watcher。
+        
+        */
     } catch (e) {
       if (this.user) {
         handleError(e, vm, `getter for watcher "${this.expression}"`)
@@ -113,11 +120,12 @@ export default class Watcher {
     } finally {
       // "touch" every property so they are all tracked as
       // dependencies for deep watching
-      if (this.deep) {
-        traverse(value)
+      if (this.deep) { // watch配置deep = true 进行深层判断
+        traverse(value) // ？？??此处存在疑问 
+        // ⭐ 此处会遍历调用响应式属性 响应式属性会收集这个watcher
       }
-      popTarget()
-      this.cleanupDeps()
+      popTarget() // 渲染完成 依赖收集好 清楚之前的Dep.target
+      this.cleanupDeps() // newsdeps添加到deps
     }
     return value
   }
@@ -126,7 +134,7 @@ export default class Watcher {
    * Add a dependency to this directive.
    */
   addDep (dep: Dep) {
-    const id = dep.id
+    const id = dep.id // id自增的
     if (!this.newDepIds.has(id)) {
       this.newDepIds.add(id)
       this.newDeps.push(dep)
@@ -163,7 +171,7 @@ export default class Watcher {
    */
   update () {
     /* istanbul ignore else */
-    if (this.lazy) {
+    if (this.lazy) { // lazy = true 再次修改dirty = true 驱动更新
       this.dirty = true
     } else if (this.sync) {
       this.run()

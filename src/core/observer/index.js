@@ -43,8 +43,14 @@ export class Observer {
     this.value = value
     this.dep = new Dep()
     this.vmCount = 0
-    def(value, '__ob__', this)
+    def(value, '__ob__', this) // 为需要收集依赖的对象添加个不可枚举的 __ob__属性  属性值为 Observer实例
+    // Observer实例的dep存储了依赖Watcher实例 该实例的getters是渲染函数  defineReactive利用闭包的变量dep.subs存储依赖(watcher)，添加=> Dep.target（指向Watcher实例） watchers.newDeps存储dep
+    // 调用Object.defineProperty 设置的 getter函数会存储依赖
+    // 调用setter 更新依赖的渲染函数
+
+    // watcer.newDeps 添加 Dep
     if (Array.isArray(value)) {
+      // 数组类型特殊处理
       if (hasProto) {
         protoAugment(value, arrayMethods)
       } else {
@@ -52,6 +58,7 @@ export class Observer {
       }
       this.observeArray(value)
     } else {
+      // 
       this.walk(value)
     }
   }
@@ -61,6 +68,7 @@ export class Observer {
    * getter/setters. This method should only be called when
    * value type is Object.
    */
+  // 递归处理 >> defineReactive
   walk (obj: Object) {
     const keys = Object.keys(obj)
     for (let i = 0; i < keys.length; i++) {
@@ -112,17 +120,20 @@ export function observe (value: any, asRootData: ?boolean): Observer | void {
     return
   }
   let ob: Observer | void
+  
+  // 已经响应处理的 直接使用
   if (hasOwn(value, '__ob__') && value.__ob__ instanceof Observer) {
     ob = value.__ob__
   } else if (
-    shouldObserve &&
-    !isServerRendering() &&
-    (Array.isArray(value) || isPlainObject(value)) &&
-    Object.isExtensible(value) &&
-    !value._isVue
+    shouldObserve && // 需要进入Observe
+    !isServerRendering() && // 服务端渲染
+    (Array.isArray(value) || isPlainObject(value)) && // 数组或对象
+    Object.isExtensible(value) && // 对象可扩展
+    !value._isVue // 非vue对象
   ) {
     ob = new Observer(value)
   }
+  // 收集层数？？
   if (asRootData && ob) {
     ob.vmCount++
   }
@@ -153,16 +164,16 @@ export function defineReactive (
     val = obj[key]
   }
 
-  let childOb = !shallow && observe(val)
+  let childOb = !shallow && observe(val) // 此处递归 obj[key] 为复杂数据时 // obeserve 返回 Observe实例 => 该实例 会存储在val的 __ob__上
   Object.defineProperty(obj, key, {
     enumerable: true,
     configurable: true,
     get: function reactiveGetter () {
       const value = getter ? getter.call(obj) : val
-      if (Dep.target) {
-        dep.depend()
+      if (Dep.target) { // 存在watcer对象 // 初始化mounted 先设置了target 再执行渲染 渲染时读取data的属性值，触发了get ... , 结束时立即重置⭐target
+        dep.depend() // 收集依赖 => Dep.target指向的watcers实例 添加 这个 Oberserve 内部变量 dep
         if (childOb) {
-          childOb.dep.depend()
+          childOb.dep.depend() // 子属性会存储父级的依赖 >> 子属性更新导致父级更新
           if (Array.isArray(value)) {
             dependArray(value)
           }
@@ -188,7 +199,7 @@ export function defineReactive (
         val = newVal
       }
       childOb = !shallow && observe(newVal)
-      dep.notify()
+      dep.notify() // 订阅模式 发布
     }
   })
 }

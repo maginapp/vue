@@ -5375,7 +5375,7 @@ var builtInComponents = {
 };
 
 /*  */
-
+// 全局方法
 function initGlobalAPI (Vue) {
   // config
   var configDef = {};

@@ -23,11 +23,15 @@ function _traverse (val: any, seen: SimpleSet) {
     return
   }
   if (val.__ob__) {
-    const depId = val.__ob__.dep.id
+    const depId = val.__ob__.dep.id // observe.dep.id
     if (seen.has(depId)) {
       return
     }
     seen.add(depId)
+    /*
+    
+    */
+
   }
   if (isA) {
     i = val.length

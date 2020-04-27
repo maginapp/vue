@@ -45,36 +45,42 @@ export function proxy (target: Object, sourceKey: string, key: string) {
   Object.defineProperty(target, key, sharedPropertyDefinition)
 }
 
+// 初始化数据配置 ⭐
 export function initState (vm: Component) {
   vm._watchers = []
   const opts = vm.$options
   if (opts.props) initProps(vm, opts.props)
   if (opts.methods) initMethods(vm, opts.methods)
   if (opts.data) {
-    initData(vm)
+    initData(vm) // data响应处理
   } else {
     observe(vm._data = {}, true /* asRootData */)
   }
   if (opts.computed) initComputed(vm, opts.computed)
-  if (opts.watch && opts.watch !== nativeWatch) {
+  if (opts.watch && opts.watch !== nativeWatch) { // ⭐ 避免watch与火狐浏览器对象原型中 watch 产生冲突
     initWatch(vm, opts.watch)
   }
 }
 
+// vm.$options.propsData
+// vm._props => $options.props 加载响应式系统
+// vm[key] => 读取 vm._props[key]
+
 function initProps (vm: Component, propsOptions: Object) {
-  const propsData = vm.$options.propsData || {}
+  const propsData = vm.$options.propsData || {} // 挂载的值 
   const props = vm._props = {}
   // cache prop keys so that future props updates can iterate using Array
   // instead of dynamic object key enumeration.
-  const keys = vm.$options._propKeys = []
+  const keys = vm.$options._propKeys = [] // 存储keys
   const isRoot = !vm.$parent
   // root instance props should be converted
+  // 非根组件 关闭监听
   if (!isRoot) {
     toggleObserving(false)
   }
   for (const key in propsOptions) {
-    keys.push(key)
-    const value = validateProp(key, propsOptions, propsData, vm)
+    keys.push(key) // 存储keys
+    const value = validateProp(key, propsOptions, propsData, vm) // 验证合法性 返回key对应挂载的值
     /* istanbul ignore else */
     if (process.env.NODE_ENV !== 'production') {
       const hyphenatedKey = hyphenate(key)
@@ -85,7 +91,9 @@ function initProps (vm: Component, propsOptions: Object) {
           vm
         )
       }
+      // vm._props 设置为响应式 只会设置一层 复杂对象不对自己设置
       defineReactive(props, key, value, () => {
+        // 客户手动修改警告
         if (!isRoot && !isUpdatingChildComponent) {
           warn(
             `Avoid mutating a prop directly since the value will be ` +
@@ -103,9 +111,10 @@ function initProps (vm: Component, propsOptions: Object) {
     // during Vue.extend(). We only need to proxy props defined at
     // instantiation here.
     if (!(key in vm)) {
-      proxy(vm, `_props`, key)
+      proxy(vm, `_props`, key) // 遍历时若发现属性不在vm中，则加入到vm._props中 // 经测试 initProps时 已经有了这些属性
     }
   }
+  // 打开监听
   toggleObserving(true)
 }
 
@@ -148,7 +157,7 @@ function initData (vm: Component) {
     }
   }
   // observe data
-  observe(data, true /* asRootData */)
+  observe(data, true /* asRootData */) // 调用响应式方法处理data
 }
 
 export function getData (data: Function, vm: Component): any {
@@ -164,11 +173,11 @@ export function getData (data: Function, vm: Component): any {
   }
 }
 
-const computedWatcherOptions = { lazy: true }
+const computedWatcherOptions = { lazy: true } // ⭐ 用于缓存作用的
 
 function initComputed (vm: Component, computed: Object) {
   // $flow-disable-line
-  const watchers = vm._computedWatchers = Object.create(null)
+  const watchers = vm._computedWatchers = Object.create(null) // 创建空对象保存计算属性依赖
   // computed properties are just getters during SSR
   const isSSR = isServerRendering()
 
@@ -195,8 +204,8 @@ function initComputed (vm: Component, computed: Object) {
     // component-defined computed properties are already defined on the
     // component prototype. We only need to define computed properties defined
     // at instantiation here.
-    if (!(key in vm)) {
-      defineComputed(vm, key, userDef)
+    if (!(key in vm)) { // key 不在vm上
+      defineComputed(vm, key, userDef) // 添加到vm上 并配置响应式关系
     } else if (process.env.NODE_ENV !== 'production') {
       if (key in vm.$data) {
         warn(`The computed property "${key}" is already defined in data.`, vm)
@@ -210,9 +219,9 @@ function initComputed (vm: Component, computed: Object) {
 export function defineComputed (
   target: any,
   key: string,
-  userDef: Object | Function
+  userDef: Object | Function // 计算属性函数 // Object {set, get }
 ) {
-  const shouldCache = !isServerRendering()
+  const shouldCache = !isServerRendering() // 服务端渲染
   if (typeof userDef === 'function') {
     sharedPropertyDefinition.get = shouldCache
       ? createComputedGetter(key)
@@ -242,11 +251,12 @@ function createComputedGetter (key) {
   return function computedGetter () {
     const watcher = this._computedWatchers && this._computedWatchers[key]
     if (watcher) {
-      if (watcher.dirty) {
-        watcher.evaluate()
+      if (watcher.dirty) {  // dirty 为 true 时才会进行重新计算 // 初始化时配置了 lazy = true => dirty = true
+        watcher.evaluate() // 执行完 dirty = false
       }
-      if (Dep.target) {
-        watcher.depend()
+      if (Dep.target) { // 添加计算属性与页面渲染函数之前的关系
+        watcher.depend() // watcher是sharedPropertyDefinition（initComputed实例） Dep.target添加这个
+        // wathcer存储的deps(oberver内部变量)建立于watchers的关系
       }
       return watcher.value
     }
@@ -306,13 +316,14 @@ function createWatcher (
   handler: any,
   options?: Object
 ) {
-  if (isPlainObject(handler)) {
+  if (isPlainObject(handler)) { // 对象类型
     options = handler
     handler = handler.handler
   }
-  if (typeof handler === 'string') {
+  if (typeof handler === 'string') { // 字符串
     handler = vm[handler]
   }
+  // handler => function
   return vm.$watch(expOrFn, handler, options)
 }
 
@@ -353,7 +364,8 @@ export function stateMixin (Vue: Class<Component>) {
     }
     options = options || {}
     options.user = true
-    const watcher = new Watcher(vm, expOrFn, cb, options)
+    const watcher = new Watcher(vm, expOrFn, cb, options) // watch的响应 没有递归子元素
+    // 立即执行
     if (options.immediate) {
       try {
         cb.call(vm, watcher.value)
@@ -361,7 +373,7 @@ export function stateMixin (Vue: Class<Component>) {
         handleError(error, vm, `callback for immediate watcher "${watcher.expression}"`)
       }
     }
-    return function unwatchFn () {
+    return function unwatchFn () { // 全局注册$watch会返回取消监听的方法
       watcher.teardown()
     }
   }

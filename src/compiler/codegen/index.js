@@ -30,7 +30,7 @@ export class CodegenState {
     const isReservedTag = options.isReservedTag || no
     this.maybeComponent = (el: ASTElement) => !!el.component || !isReservedTag(el.tag)
     this.onceId = 0
-    this.staticRenderFns = []
+    this.staticRenderFns = [] // 添加静态渲染函数
     this.pre = false
   }
 }
@@ -44,10 +44,11 @@ export function generate (
   ast: ASTElement | void,
   options: CompilerOptions
 ): CodegenResult {
-  const state = new CodegenState(options)
+  const state = new CodegenState(options) // 初始化配置 添加缓存相关配置
   const code = ast ? genElement(ast, state) : '_c("div")'
   return {
-    render: `with(this){return ${code}}`,
+    // 渲染方法字符串
+    render: `with(this){return ${code}}`, // with语法 确保this执行的统一性
     staticRenderFns: state.staticRenderFns
   }
 }
@@ -72,9 +73,9 @@ export function genElement (el: ASTElement, state: CodegenState): string {
   } else {
     // component or element
     let code
-    if (el.component) {
+    if (el.component) { // 组件类节点
       code = genComponent(el.component, el, state)
-    } else {
+    } else { // 元素节点
       let data
       if (!el.plain || (el.pre && state.maybeComponent(el))) {
         data = genData(el, state)
@@ -86,6 +87,7 @@ export function genElement (el: ASTElement, state: CodegenState): string {
       }${
         children ? `,${children}` : '' // children
       })`
+      // `_c(tag[,data][,children])`
     }
     // module transforms
     for (let i = 0; i < state.transforms.length; i++) {
@@ -117,9 +119,9 @@ function genStatic (el: ASTElement, state: CodegenState): string {
 // v-once
 function genOnce (el: ASTElement, state: CodegenState): string {
   el.onceProcessed = true
-  if (el.if && !el.ifProcessed) {
+  if (el.if && !el.ifProcessed) { // ifProcessed
     return genIf(el, state)
-  } else if (el.staticInFor) {
+  } else if (el.staticInFor) { // staticInFor
     let key = ''
     let parent = el.parent
     while (parent) {

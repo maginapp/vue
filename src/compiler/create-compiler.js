@@ -4,7 +4,9 @@ import { extend } from 'shared/util'
 import { detectErrors } from './error-detector'
 import { createCompileToFunctionFn } from './to-function'
 
+// createCompilerCreator 创建闭包缓存 baseCompile
 export function createCompilerCreator (baseCompile: Function): Function {
+  // createCompiler 缓存 baseOptions 返回  compile/compileToFunctions 方法
   return function createCompiler (baseOptions: CompilerOptions) {
     function compile (
       template: string,
@@ -18,6 +20,7 @@ export function createCompilerCreator (baseCompile: Function): Function {
         (tip ? tips : errors).push(msg)
       }
 
+      // 合并配置
       if (options) {
         if (process.env.NODE_ENV !== 'production' && options.outputSourceRange) {
           // $flow-disable-line
@@ -58,6 +61,7 @@ export function createCompilerCreator (baseCompile: Function): Function {
 
       finalOptions.warn = warn
 
+      // 执行解析过程
       const compiled = baseCompile(template.trim(), finalOptions)
       if (process.env.NODE_ENV !== 'production') {
         detectErrors(compiled.ast, warn)
@@ -68,7 +72,7 @@ export function createCompilerCreator (baseCompile: Function): Function {
     }
 
     return {
-      compile,
+      compile, // baseCompile 执行结果 { ast, render: code.render, staticRenderFns:  }
       compileToFunctions: createCompileToFunctionFn(compile)
     }
   }

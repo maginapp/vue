@@ -90,7 +90,7 @@ export function lifecycleMixin (Vue: Class<Component>) {
   Vue.prototype.$forceUpdate = function () {
     const vm: Component = this
     if (vm._watcher) {
-      vm._watcher.update()
+      vm._watcher.update() // 执行实例_watcher的update方法 来自于Watcher
     }
   }
 
@@ -176,25 +176,25 @@ export function mountComponent (
       const endTag = `vue-perf-end:${id}`
 
       mark(startTag)
-      const vnode = vm._render()
+      const vnode = vm._render() // 渲染
       mark(endTag)
       measure(`vue ${name} render`, startTag, endTag)
 
       mark(startTag)
-      vm._update(vnode, hydrating)
+      vm._update(vnode, hydrating) // 更新
       mark(endTag)
       measure(`vue ${name} patch`, startTag, endTag)
     }
   } else {
     updateComponent = () => {
-      vm._update(vm._render(), hydrating)
+      vm._update(vm._render(), hydrating) // 更新组件 渲染 ⭐
     }
   }
 
   // we set this to vm._watcher inside the watcher's constructor
   // since the watcher's initial patch may call $forceUpdate (e.g. inside child
   // component's mounted hook), which relies on vm._watcher being already defined
-  new Watcher(vm, updateComponent, noop, {
+  new Watcher(vm, updateComponent, noop, { // ？ 创建一个 Watcher 实例（即依赖）
     before () {
       if (vm._isMounted && !vm._isDestroyed) {
         callHook(vm, 'beforeUpdate')
@@ -214,10 +214,10 @@ export function mountComponent (
 
 export function updateChildComponent (
   vm: Component,
-  propsData: ?Object,
-  listeners: ?Object,
-  parentVnode: MountedComponentVNode,
-  renderChildren: ?Array<VNode>
+  propsData: ?Object, // updated props
+  listeners: ?Object,  // updated listeners
+  parentVnode: MountedComponentVNode,  // new parent vnode
+  renderChildren: ?Array<VNode>  // new children
 ) {
   if (process.env.NODE_ENV !== 'production') {
     isUpdatingChildComponent = true
@@ -262,17 +262,19 @@ export function updateChildComponent (
 
   // update props
   if (propsData && vm.$options.props) {
-    toggleObserving(false)
-    const props = vm._props
+    toggleObserving(false) // 关闭依赖监听  ？？⭐⭐变为faisle的作用 1. validateProp中用到 2. ？？新建observer时 不创建Obeserve对象 原值返回 =>  实际查看结果确实如此 vm.$options.propsData 的子级元素 没有进行响应式处理，孙子级别进行了响应式处理 但实际是与这相关吗
+    // 下方 propsData是直接赋值的
+    const props = vm._props // 获取 vm._props值 // 之前observe注册过响应式
     const propKeys = vm.$options._propKeys || []
     for (let i = 0; i < propKeys.length; i++) {
       const key = propKeys[i]
       const propOptions: any = vm.$options.props // wtf flow?
-      props[key] = validateProp(key, propOptions, propsData, vm)
+      // 此处触发了 props[key]修改 调用对应的setter
+      props[key] = validateProp(key, propOptions, propsData, vm) // 验证并获取对应的值
     }
-    toggleObserving(true)
+    toggleObserving(true) // 打开监听
     // keep a copy of raw propsData
-    vm.$options.propsData = propsData
+    vm.$options.propsData = propsData // 新的来自父组件的值 赋值给子组件
   }
 
   // update listeners
@@ -336,9 +338,9 @@ export function deactivateChildComponent (vm: Component, direct?: boolean) {
 export function callHook (vm: Component, hook: string) {
   // #7573 disable dep collection when invoking lifecycle hooks
   pushTarget()
-  const handlers = vm.$options[hook]
+  const handlers = vm.$options[hook] // 获取钩子函数
   const info = `${hook} hook`
-  if (handlers) {
+  if (handlers) { // 执行钩子函数列表
     for (let i = 0, j = handlers.length; i < j; i++) {
       invokeWithErrorHandling(handlers[i], vm, null, vm, info)
     }

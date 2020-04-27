@@ -143,6 +143,7 @@ strats.data = function (
 /**
  * Hooks and props are merged as arrays.
  */
+// 里层到最外层逐渐添加到 [] lifecycle类似的
 function mergeHook (
   parentVal: ?Array<Function>,
   childVal: ?Function | ?Array<Function>
@@ -180,6 +181,7 @@ LIFECYCLE_HOOKS.forEach(hook => {
  * a three-way merge between constructor options, instance
  * options and parent options.
  */
+// 简单的覆盖 从最里层开始  ==> 实现效果  component/directive/filter 从vue实例（外层）逐渐向里面寻找 找到就结束
 function mergeAssets (
   parentVal: ?Object,
   childVal: ?Object,
@@ -250,10 +252,10 @@ strats.computed = function (
   if (childVal && process.env.NODE_ENV !== 'production') {
     assertObjectType(key, childVal, vm)
   }
-  if (!parentVal) return childVal
+  if (!parentVal) return childVal // 上级不存在 直接返回子级
   const ret = Object.create(null)
-  extend(ret, parentVal)
-  if (childVal) extend(ret, childVal)
+  extend(ret, parentVal) // parentVal
+  if (childVal) extend(ret, childVal) // childVal覆盖parentVal
   return ret
 }
 strats.provide = mergeDataOrFn
@@ -385,6 +387,7 @@ function assertObjectType (name: string, value: any, vm: ?Component) {
  * Merge two option objects into a new one.
  * Core utility used in both instantiation and inheritance.
  */
+// this.options = mergeOptions(this.options, mixin)
 export function mergeOptions (
   parent: Object,
   child: Object,
@@ -406,7 +409,12 @@ export function mergeOptions (
   // but only if it is a raw options object that isn't
   // the result of another mergeOptions call.
   // Only merged options has the _base property.
+  // 优先遍历 递归查询 存在的子级别mixins
+  // 最下层的先与parent合并 生成新的options 赋值给parent
+  // 递归逐步回来时新的parent与 逐步跳出来的mixins合并
+  // 最后与最外层的minxin合并
   if (!child._base) {
+    // 递归 扩展可mixins
     if (child.extends) {
       parent = mergeOptions(parent, child.extends, vm)
     }
